@@ -1,6 +1,8 @@
 /*
 
-  See "./inflate.c" for bash helpers.
+  QuickNDirty bash equivalent:
+
+  bash-deflate(){ gzip -c | tail -c +10; }
 
 */
 
@@ -10,16 +12,14 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* libs */
-#include "zlib.h"
-
-/* project */
-#include "string-util.h"
-#include "log.h"
+#include <zlib.h>
 
 
+typedef  unsigned char  uchar; /* TODO rm */
 typedef  struct Deflate  Deflate;
 
 
@@ -48,7 +48,7 @@ static void printHelp( void ){
 static int parseArgs( int argc, char**argv, Deflate*deflateCls ){
     deflateCls->level = Z_DEFAULT_COMPRESSION;
     deflateCls->useZlibHdr = 0;
-    for( uint i=1 ; i<argc ; ++i ){
+    for( int i = 1 ; i < argc ; ++i ){
         char *arg = argv[i];
         if( !strcmp(arg,"--help") ){
             printHelp(); return -1;
@@ -75,7 +75,6 @@ static int parseArgs( int argc, char**argv, Deflate*deflateCls ){
 static int doDeflate( Deflate*deflateCls ){
     int err;
     z_stream strm;
-    long tmpLong;
     uchar innBuf[65536];
     const int innBuf_cap = sizeof innBuf;
     int innBuf_len = 0, innBuf_off = 0;
@@ -94,7 +93,7 @@ static int doDeflate( Deflate*deflateCls ){
 
     err = deflateInit(&strm, deflateCls->level);
     if( err != Z_OK ){
-        LOG_ERROR("deflateInit(): (ret=%d): %s", err, strerror(errno));
+        fprintf(stderr, "Error: deflateInit(): (ret=%d): %s", err, strerror(errno));
         return -1;
     }
 
@@ -103,9 +102,7 @@ static int doDeflate( Deflate*deflateCls ){
         /* input */ {
             int space = innBuf_cap - innBuf_len;
             /* look if we can shift */
-            //LOG_DEBUG("space=%d\n", space);
             if( space <= 0 && innBuf_off > 0 ){
-                //LOG_DEBUG("do shifting\n");
                 int wr = 0, rd = innBuf_off;
                 for(;;){
                     err = rd - wr; /* chunk length to copy */
@@ -118,7 +115,6 @@ static int doDeflate( Deflate*deflateCls ){
                 innBuf_len -= innBuf_off;
                 innBuf_off = 0;
                 space = innBuf_cap - innBuf_len;
-                //LOG_DEBUG("space=%d (after shift)\n", space);
             }
             if( space > 0 && !inputIsEOF ){
                 err = fread(innBuf + innBuf_len, 1, space, stdin);
@@ -126,7 +122,7 @@ static int doDeflate( Deflate*deflateCls ){
                     if( feof(stdin) ){
                         inputIsEOF = !0;
                     }else{
-                        LOG_ERROR("fread(): %s", strerror(errno));
+                        fprintf(stderr, "Error: fread(): %s", strerror(errno));
                         return -1;
                     }
                 }
@@ -142,14 +138,13 @@ static int doDeflate( Deflate*deflateCls ){
             strm.next_out = outBuf;
             strm.avail_out = outBuf_cap;
             assert(strm.avail_out > 0);
-            //LOG_DEBUG("avail_in=%d, inputIsEOF=%d\n", strm.avail_in, inputIsEOF);
             assert(strm.avail_in > 0 || inputIsEOF);
             err = deflate(&strm, inputIsEOF ? Z_FINISH : Z_NO_FLUSH);
             if(unlikely( err != Z_OK )){
                 if( err == Z_STREAM_END ){
                     outputIsEOF = !0;
                 }else{
-                    LOG_ERROR("deflate(): %s\n", strm.msg);
+                    fprintf(stderr, "Error: deflate(): %s\n", strm.msg);
                     return -1;
                 }
             }
@@ -168,7 +163,7 @@ static int doDeflate( Deflate*deflateCls ){
             }
             err = fwrite(outBuf + outBuf_off, 1, outBuf_len - outBuf_off, stdout);
             if(unlikely( err != outBuf_len - outBuf_off )){
-                LOG_ERROR("fwrite(): %s\n", strerror(errno));
+                fprintf(stderr, "Error: fwrite(): %s\n", strerror(errno));
                 return -1;
             }
             outBuf_len = 0;
@@ -177,7 +172,8 @@ static int doDeflate( Deflate*deflateCls ){
 
     err = deflateEnd(&strm);
     if( err != Z_OK ){
-        LOG_WARN("deflateEnd() ret=%d: %s\n", err, strm.msg);
+        fprintf(stderr, "Warn: deflateEnd() ret=%d: %s\n", err, strm.msg);
+        return -2;
     }
 
     return 0;
@@ -192,8 +188,7 @@ int deflate_main( int argc, char**argv ){
     err = parseArgs(argc, argv, deflateCls);
     if( err < 0 ){ return err; }
 
-    stdinModeBinary();
-    stdoutModeBinary();
+    fixBrokenStdio();
 
     err = doDeflate(deflateCls);
     if( err < 0 ){ return err; }

@@ -7,28 +7,27 @@ if test -n "$BASH_VERSION"; then set -o posix; fi
 prefix=/usr/local
 exec_prefix='$(PREFIX)'
 bindir='$(EXEC_PREFIX)/bin'
-host=
+verbose=0
 
 
-main() {
+main () {
     parseArgs "$@"
-    echo TODO create Makefile
+    printMakefile > Makefile
 }
 
 
-printHelp() {
+printHelp () {
     echo ''
     echo "Example usage:   $0 --prefix /usr/local"
     echo ''
     echo 'Options:'
     echo '    --prefix <path>      Default "/usr/local"'
     echo '    --bindir <path>      Default "$(EXEC_PREFIX)/bin"'
-    echo '    --host <name>        Default <empty> (Eg "x86_64-w64-mingw32")'
     echo ''
 }
 
 
-parseArgs() {
+parseArgs () {
     # See: https://stackoverflow.com/a/14203146/4415884
     while test $# -gt 0 ; do
         case $1 in
@@ -36,10 +35,139 @@ parseArgs() {
             --prefix)      prefix="$2"      shift; shift; ;;
             --exec_prefix) exec_prefix="$2" shift; shift; ;;
             --bindir)      bindir="$2"      shift; shift; ;;
-            --host)        host="$2"        shift; shift; ;;
-            *) echo "[ERROR] Unexpected argument: $1" exit 1 ;;
+            --verbose)     verbose="$2"     shift; shift; ;;
+            *) echo "[ERROR] Unexpected argument: $1"; exit 1 ;;
         esac
     done
+}
+
+
+printMakefile () {
+    printf '\n'
+    printf '%s\n' 'CC=gcc'
+    printf '%s\n' 'RIMRAF=rm -rf'
+    printf '%s\n' 'MKDIRS=mkdir -p'
+    printf '%s\n' 'COPYTO=cp -t'
+
+    printf '\n'
+    printf '%s\n' "PREFIX=$prefix"
+    printf '%s\n' "EXEC_PREFIX=$exec_prefix"
+    printf '%s\n' "BINDIR=$bindir"
+
+    printf '\n'
+    printf '%s'   'PROJECT_VERSION=$(shell'
+    printf '%s'   ' ret=$$(git describe --tags 2>/dev/null |sed -E "s;^v;;");'
+    printf '%s'   ' if test -n "$$ret" -a -n "$$(git status --porcelain 2>/dev/null)"; then'
+    printf '%s'       ' ret="$$ret+dirt";'
+    printf '%s'   ' fi;'
+    printf '%s'   ' if test -z "$$ret"; then ret=$$(date -u +0.0.0-%Y%m%d.%H%M%S); fi;'
+    printf '%s\n' ' echo "$$ret")'
+
+    if test "$verbose" = "0"; then printf '\n%s\n' '.SILENT:'; fi
+    printf '%s\n' '.SUFFIXES:'
+
+    printf '\n'
+    printf '%s'   'CFLAGS=--std=c99 -fPIC -Wall -Wextra -Werror -fmax-errors=3'
+    printf '%s'   ' -Wno-error=unused-function -Wno-error=unused-label -Wno-error=unused-variable'
+    printf '%s'   ' -Wno-error=unused-parameter -Wno-error=unused-const-variable'
+    printf '%s'   ' -Wno-error=unused-but-set-variable'
+    printf '%s'   ' -Wno-error=discarded-qualifiers -Wno-error=sign-compare -Wno-error=pointer-sign'
+    printf '%s'   ' -Wno-error=maybe-uninitialized -Werror=implicit-fallthrough=1'
+    printf '%s'   ' -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers'
+    printf '%s\n' ' -DPROJECT_VERSION=$(PROJECT_VERSION)'
+
+    printf '\n'
+    printf '%s\n' 'LDFLAGS=-Wl,--no-demangle,--fatal-warnings'
+
+    # TODO replace gnumake by $(shell if ..)
+    printf '\n'
+    printf '%s\n' 'ifndef NDEBUG'
+    printf '%s\n' '	CFLAGS := $(CFLAGS) -ggdb -O0 -g3'
+    printf '%s\n' 'else'
+    printf '%s\n' '	CFLAGS := $(CFLAGS) -ffunction-sections -fdata-sections -Os -s "-DNDEBUG=1"'
+    printf '%s\n' '	LDFLAGS := $(LDFLAGS) -Wl,--gc-sections,--as-needed -s'
+    printf '%s\n' 'endif'
+
+    printf '\n'
+    printf '%s\n' 'INCDIRS=-Isrc/main/c'
+    printf '%s\n' 'LIBSDIR='
+
+    printf '\n'
+    printf '%s\n' '.PHONY: default'
+    printf '%s\n' 'default: link dist'
+
+    printf '\n'
+    printf '%s\n' '.PHONY: link'
+    printf '%s'   'link:'
+    printf '%s'   ' build/bin/deflate$(BINEXT)'
+    printf '%s\n' ' build/bin/inflate$(BINEXT)'
+
+    printf '%s\n' '.PHONY: clean'
+    printf '%s\n' 'clean:'
+    printf '%s\n' '	echo "rm -rf build dist"'
+    printf '%s\n' '	rm -rf build dist'
+
+    # Create synthetic entrypoints
+    printf '%s\n' 'build/link/%.c:'
+    printf '%s\n' '	echo "  Gen   $@"'
+    printf '%s\n' '	$(MKDIRS) "$(shell T=$@; echo $${T%/*})"'
+    printf '%s\n' '	@echo "#include \"commonbase.h\"" >> $@'
+    printf '%s\n' '	@echo "int main( int err, char**argv ){" >> $@'
+    printf '%s\n' '	@echo "    err = $*(err, argv);" >> $@'
+    printf '%s\n' '	@echo "    if( err < 0 ){ err = 0 - err; }" >> $@'
+    printf '%s\n' '	@echo "    return (err > 127) ? 1 : err;" >> $@'
+    printf '%s\n' '	@echo "}" >> $@'
+
+    printf '%s\n' 'build/link/%.o: build/link/%.c'
+    printf '%s\n' '	echo "  CC    $@"'
+    printf '%s\n' '	$(MKDIRS) "$(shell T=$@; echo $${T%/*})"'
+    printf '%s\n' '	$(CC) -c -o $@ $(CFLAGS) -Wno-implicit-function-declaration build/link/$*.c $(INCDIRS)'
+
+    printf '\n'
+    printf '%s\n' 'build/obj/main/%.o: src/main/c/%.c'
+    printf '%s\n' '	echo "  CC    $@"'
+    printf '%s\n' '	$(MKDIRS) "$(shell T=$@; echo $${T%/*})"'
+    printf '%s\n' '	$(CC) -c -o $@ $^ $(CFLAGS) $(INCDIRS)'
+
+    printf '%s'   'build/bin/deflate$(BINEXT):'
+    printf '%s'   ' build/obj/main/deflate.o'
+    printf '%s\n' ' build/link/deflate_main.o'
+    printf '%s\n' '	@echo "  LN    $@"'
+    printf '%s\n' '	$(MKDIRS) "$(shell T=$@; echo $${T%/*})"'
+    printf '%s\n' '	$(CC) -o $@ $(LDFLAGS) $^ $(INCDIRS) $(LIBSDIR) -Wl,-Bdynamic -lz'
+
+    printf '%s'   'build/bin/inflate$(BINEXT):'
+    printf '%s'   ' build/obj/main/inflate.o'
+    printf '%s\n' ' build/link/inflate_main.o'
+    printf '%s\n' '	echo "  LN    $@"'
+    printf '%s\n' '	$(MKDIRS) "$(shell T=$@; echo $${T%/*})"'
+    printf '%s\n' '	$(CC) -o $@ $(LDFLAGS) $^ $(INCDIRS) $(LIBSDIR) -Wl,-Bdynamic -lz'
+
+    printf '\n'
+    printf '%s\n' '.PHONY: dist'
+    printf '%s\n' 'dist: link'
+    printf '%s\n' '	echo "  Package"'
+    printf '%s\n' '	$(RIMRAF) build/dist-* dist'
+    printf '%s\n' '	$(MKDIRS) dist'
+                  # Create Executable bundle.
+    printf '%s\n' '	$(MKDIRS) build/dist-bin'
+    printf '%s\n' '	$(COPYTO) build/dist-bin  README* LICENCE*'
+    printf '%s\n' '	$(MKDIRS) build/dist-bin/bin'
+    printf '%s\n' '	$(COPYTO) build/dist-bin/bin  build/bin/*'
+    printf '%s'   '	(cd build/dist-bin && find . -type f -not -name MD5SUM -exec md5sum -b {} +)'
+    printf '%s\n'     ' > build/dist-bin/MD5SUM'
+    printf '%s'   '	(cd build/dist-bin && tar --owner=0 --group=0'
+    printf '%s\n'     ' -czf "../../dist/BulkLn-$(PROJECT_VERSION).tgz" *)'
+    printf '%s\n' '	echo "" && echo "See '\''./dist/'\'' for result." && echo ""'
+    printf '%s'   '	if test -n "$$(git status --porcelain 2>/dev/null)"; then'
+    printf '%s'       ' echo "[WARN ] Worktree dirty!"; sleep 2;'
+    printf '%s\n' ' fi'
+
+    printf '\n'
+    printf '%s\n' '.PHONY: install'
+    printf '%s\n' 'install:'
+    printf '%s\n' '	$(MKDIRS) "$(BINDIR)"'
+    printf '%s\n' '	tar --strip-components=1 -C "$(BINDIR)" -xzf "$(shell ls dist/BulkLn-*.tgz)" -- bin'
 }
 
 

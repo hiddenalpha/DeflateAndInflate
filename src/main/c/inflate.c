@@ -1,6 +1,5 @@
 /*
 
-  bash-deflate(){ gzip -c | tail -c +10; }
   bash-inflate(){ (printf "\x1f\x8b\x08\x00\x00\x00\x00\x00\x00"&&cat -)|gzip -dc; }
 
 */
@@ -16,11 +15,8 @@
 /* libs */
 #include "zlib.h"
 
-/* project */
-#include "log.h"
-#include "string-util.h"
 
-
+typedef  unsigned char  uchar; /* TODO cleanup */
 typedef  struct MyInflate  MyInflate;
 
 
@@ -47,7 +43,7 @@ static void printHelp( void ){
 
 static int parseArgs( int argc, char**argv, MyInflate*myInflate ){
     myInflate->tryParseHeaders = !0; /* enabled by default */
-    for( uint i=1 ; i<argc ; ++i ){
+    for( int i = 1 ; i < argc ; ++i ){
         char *arg = argv[i];
         if( !strcmp(arg,"--help") ){
             printHelp(); return -1;
@@ -88,7 +84,7 @@ static int doInflate( MyInflate*myInflate ){
     // Pass special 2nd arg. See "https://codeandlife.com/2014/01/01/unzip-library-for-c/"
     err = inflateInit2(&strm, -MAX_WBITS);
     if( err != Z_OK ){
-        LOG_ERROR("inflateInit() ret=%d: %s", err, strerror(errno));
+        fprintf(stderr, "Error: inflateInit() ret=%d: %s", err, strerror(errno));
         return -1;
     }
 
@@ -98,7 +94,6 @@ static int doInflate( MyInflate*myInflate ){
             int space = innBuf_cap - innBuf_len;
             /* look if we can shift */
             if( space <= 0 && innBuf_off > 0 ){
-                //LOG_DEBUG("try-shift space=%d, innBuf_off=%d\n", space, innBuf_off);
                 int wr = 0, rd = innBuf_off;
                 for(;;){
                     err = rd - wr; /* chunk length to copy */
@@ -111,17 +106,14 @@ static int doInflate( MyInflate*myInflate ){
                 innBuf_len -= innBuf_off;
                 innBuf_off = 0;
                 space = innBuf_cap - innBuf_len;
-                //LOG_DEBUG("after shift space=%d, innBuf_off=%d, innBuf_len=%d\n", space, innBuf_off, innBuf_len);
             }
             if( space > 0 && !inputIsEOF ){
-                //LOG_TRACE("go read  space=%d, inputIsEOF=%d\n", space, inputIsEOF);
                 err = fread(innBuf + innBuf_len, 1, space, stdin);
-                //LOG_TRACE("fread() -> %d\n", err);
                 if(unlikely( err <= 0 )){
                     if( feof(stdin) ){
                         inputIsEOF = !0;
                     }else{
-                        LOG_ERROR("fread(): %s", strerror(errno));
+                        fprintf(stderr, "Error: fread(): %s", strerror(errno));
                         return -1;
                     }
                 }
@@ -133,13 +125,16 @@ static int doInflate( MyInflate*myInflate ){
         if(unlikely( !headerIsPassed )){
             #define avail (innBuf_len - innBuf_off)
             /* Ensure we have at least two bytes for zlib header detection */
-            if( avail < 2 && !inputIsEOF ){ LOG_DEBUG("Not enough data for header detection. have"
-                    " %d\n", avail); continue; }
+            if( avail < 2 && !inputIsEOF ){
+                #ifndef NDEBUG
+                fprintf(stderr, "[DEBUG] Not enough data for header detection. have %d\n", avail);
+                #endif
+                continue;
+            }
             headerIsPassed = !0;
             if( myInflate->tryParseHeaders ){
                 int b0 = innBuf[0], b1 = innBuf[1];
                 if( b0 == 0x78 && (b1 == 0x01 || b1 == 0x5E || b1 == 0x9C || b1 == 0xDA) ){
-                    //LOG_DEBUG("looks like a zlib header. Skip it\n");
                     innBuf_off += 2;
                 }
             }
@@ -154,27 +149,25 @@ static int doInflate( MyInflate*myInflate ){
             // TODO remove assert(strm.avail_in >= 0 || inputIsEOF);
             assert(strm.avail_out > 0);
             int flush = inputIsEOF ? Z_FINISH : Z_NO_FLUSH;
-            //LOG_DEBUG("inflate(in=0x%p, inLen=%d, %s)\n", strm.next_in, strm.avail_in,
-            //        (flush==Z_FINISH) ? "Z_FINISH" : (flush==Z_FULL_FLUSH) ? "Z_FULL_FLUSH" : "Z_NO_FLUSH");
             errno = 0;
             err = inflate(&strm, flush);
             if(unlikely( err != Z_OK )){
                 if( err == Z_STREAM_END ){
-                    //LOG_DEBUG("inflate() -> Z_STREAM_END\n");
                     outputIsEOF = !0;
                 }else if( err == Z_BUF_ERROR ){
                     /* Could not make any progress. Have to call again with updated buffers */
                     noProgressSince += 1;
                     if( noProgressSince > 42 ){
-                        LOG_WARN("inflate() -> Z_BUF_ERROR: %s (maybe EOF came too early?)\n",
+                        fprintf(stderr, "Warn: inflate() -> Z_BUF_ERROR: %s (maybe EOF came too early?)\n",
                                 (strm.msg == NULL) ? "Could not make any progress" : strm.msg);
                         return -1;
                     }
                 }else if( strm.msg != NULL || errno ){
-                    LOG_ERROR("inflate(): %s\n", (strm.msg != NULL) ? strm.msg : strerror(errno));
+                    fprintf(stderr, "Error: inflate(): %s\n", (strm.msg != NULL) ? strm.msg :
+                            strerror(errno));
                     return -1;
                 }else{
-                    LOG_ERROR("inflate(): -> %d\n", err);
+                    fprintf(stderr, "Error: inflate(): -> %d\n", err);
                     return -1;
                 }
             }else{
@@ -183,14 +176,12 @@ static int doInflate( MyInflate*myInflate ){
             innBuf_off += strm.next_in - innBuf;
             outBuf_len = strm.next_out - outBuf;
             if( innBuf_off > innBuf_len ){ innBuf_off = innBuf_len; }
-            //LOG_DEBUG("strm.remain=%d, outputIsEOF=%d\n", innBuf_len - innBuf_off, outputIsEOF);
         }
 
         /* output */ {
             err = fwrite(outBuf, 1, outBuf_len, stdout);
-            //LOG_DEBUG("fwrite(0x%p, 1, %d, stdout) -> %d\n", outBuf, outBuf_len, err);
             if(unlikely( err != outBuf_len )){
-                LOG_ERROR("fwrite(): %s\n", strerror(errno));
+                fprintf(stderr, "Errro: fwrite(): %s\n", strerror(errno));
                 return -1;
             }
             outBuf_len = 0;
@@ -199,7 +190,7 @@ static int doInflate( MyInflate*myInflate ){
 
     err = inflateEnd(&strm);
     if( err != Z_OK ){
-        LOG_WARN("inflateEnd() ret=%d: %s\n", err, strm.msg);
+        fprintf(stderr, "Warn: inflateEnd() ret=%d: %s\n", err, strm.msg);
     }
 
     return 0;
@@ -215,8 +206,7 @@ int inflate_main( int argc, char**argv ){
     err = parseArgs(argc, argv, myInflate);
     if( err < 0 ){ return err; }
 
-    stdinModeBinary();
-    stdoutModeBinary();
+    fixBrokenStdio();
 
     err = doInflate(myInflate);
     if( err < 0 ){ return err; }
