@@ -1,0 +1,47 @@
+
+set -e
+if test -n "$BASH_VERSION"; then set -o posix; fi
+
+
+# See https://www.gnu.org/prep/standards/html_node/Directory-Variables.html
+prefix=/usr/local
+exec_prefix='$(PREFIX)'
+bindir='$(EXEC_PREFIX)/bin'
+host=
+
+
+main() {
+    parseArgs "$@"
+    echo TODO create Makefile
+}
+
+
+printHelp() {
+    echo ''
+    echo "Example usage:   $0 --prefix /usr/local"
+    echo ''
+    echo 'Options:'
+    echo '    --prefix <path>      Default "/usr/local"'
+    echo '    --bindir <path>      Default "$(EXEC_PREFIX)/bin"'
+    echo '    --host <name>        Default <empty> (Eg "x86_64-w64-mingw32")'
+    echo ''
+}
+
+
+parseArgs() {
+    # See: https://stackoverflow.com/a/14203146/4415884
+    while test $# -gt 0 ; do
+        case $1 in
+            --help)        printHelp; exit 1; ;;
+            --prefix)      prefix="$2"      shift; shift; ;;
+            --exec_prefix) exec_prefix="$2" shift; shift; ;;
+            --bindir)      bindir="$2"      shift; shift; ;;
+            --host)        host="$2"        shift; shift; ;;
+            *) echo "[ERROR] Unexpected argument: $1" exit 1 ;;
+        esac
+    done
+}
+
+
+main "$@"
+
