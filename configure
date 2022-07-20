@@ -48,6 +48,7 @@ printMakefile () {
     printf '%s\n' 'RIMRAF=rm -rf'
     printf '%s\n' 'MKDIRS=mkdir -p'
     printf '%s\n' 'COPYTO=cp -t'
+    printf '%s\n' 'NDEBUG=1'
 
     printf '\n'
     printf '%s\n' "PREFIX=$prefix"
@@ -84,8 +85,8 @@ printMakefile () {
     printf '%s\n' 'ifndef NDEBUG'
     printf '%s\n' '	CFLAGS := $(CFLAGS) -ggdb -O0 -g3'
     printf '%s\n' 'else'
-    printf '%s\n' '	CFLAGS := $(CFLAGS) -ffunction-sections -fdata-sections -Os -s "-DNDEBUG=1"'
-    printf '%s\n' '	LDFLAGS := $(LDFLAGS) -Wl,--gc-sections,--as-needed -s'
+    printf '%s\n' '	CFLAGS := $(CFLAGS) -ffunction-sections -fdata-sections -Os "-DNDEBUG=1"'
+    printf '%s\n' '	LDFLAGS := $(LDFLAGS) -Wl,--gc-sections,--as-needed'
     printf '%s\n' 'endif'
 
     printf '\n'
