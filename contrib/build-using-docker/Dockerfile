@@ -30,5 +30,5 @@ USER 1000:1000
 
 # run for max 10 hrs. Because this container is not meant to stay running
 # forever.
-CMD ["sleep 36000"]
+CMD ["sleep", "36000"]
 
