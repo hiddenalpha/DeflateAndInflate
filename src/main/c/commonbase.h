@@ -21,10 +21,7 @@
 
 
 #if WINDOOF
-static inline void fixBrokenStdio( void ){
-    _setmode(_fileno(stdin), O_BINARY);
-    _setmode(_fileno(stdout), O_BINARY);
-}
+void fixBrokenStdio( void );
 #else
 #   define fixBrokenStdio()
 #endif
