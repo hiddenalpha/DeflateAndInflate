@@ -4,6 +4,7 @@ FROM $PARENT_IMAGE
 
 ARG GIT_TAG=
 ARG CONFIGURE_OPTS=
+ARG MAKE_OPTS=
 ARG PKGS_TO_ADD="curl gcc git make musl-dev tar zlib-dev"
 ARG PKGS_TO_DEL="curl gcc git make musl-dev tar zlib-dev"
 ARG PKGINIT=true
@@ -19,7 +20,7 @@ RUN true \
     && BR=$(if test -n "$GIT_TAG"; then echo " --branch $GIT_TAG"; else echo ""; fi) \
     && git clone --depth 42 $BR https://github.com/hiddenalpha/DeflateAndInflate.git . \
     && ./configure $CONFIGURE_OPTS \
-    && make clean && make && make install \
+    && make clean $MAKE_OPTS && make $MAKE_OPTS && make install $MAKE_OPTS \
     && find . -not -wholename './dist*' -delete \
     && find /work -exec chown 1000:1000 {} + \
     && $PKGDEL $PKGS_TO_DEL \
