@@ -93,7 +93,7 @@ static int doDeflate( Deflate*deflateCls ){
 
     err = deflateInit(&strm, deflateCls->level);
     if( err != Z_OK ){
-        fprintf(stderr, "Error: deflateInit(): (ret=%d): %s", err, strerror(errno));
+        fprintf(stderr, "Error: deflateInit(): (ret=%d): %s\n", err, strerror(errno));
         return -1;
     }
 
@@ -122,7 +122,7 @@ static int doDeflate( Deflate*deflateCls ){
                     if( feof(stdin) ){
                         inputIsEOF = !0;
                     }else{
-                        fprintf(stderr, "Error: fread(): %s", strerror(errno));
+                        fprintf(stderr, "Error: fread(): %s\n", strerror(errno));
                         return -1;
                     }
                 }

@@ -84,7 +84,7 @@ static int doInflate( MyInflate*myInflate ){
     // Pass special 2nd arg. See "https://codeandlife.com/2014/01/01/unzip-library-for-c/"
     err = inflateInit2(&strm, -MAX_WBITS);
     if( err != Z_OK ){
-        fprintf(stderr, "Error: inflateInit() ret=%d: %s", err, strerror(errno));
+        fprintf(stderr, "Error: inflateInit() ret=%d: %s\n", err, strerror(errno));
         return -1;
     }
 
@@ -113,7 +113,7 @@ static int doInflate( MyInflate*myInflate ){
                     if( feof(stdin) ){
                         inputIsEOF = !0;
                     }else{
-                        fprintf(stderr, "Error: fread(): %s", strerror(errno));
+                        fprintf(stderr, "Error: fread(): %s\n", strerror(errno));
                         return -1;
                     }
                 }
