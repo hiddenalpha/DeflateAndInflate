@@ -158,7 +158,7 @@ printMakefile () {
     printf '%s'   '	(cd build/dist-bin && find . -type f -not -name MD5SUM -exec md5sum -b {} +)'
     printf '%s\n'     ' > build/dist-bin/MD5SUM'
     printf '%s'   '	(cd build/dist-bin && tar --owner=0 --group=0'
-    printf '%s\n'     ' -czf "../../dist/BulkLn-$(PROJECT_VERSION).tgz" *)'
+    printf '%s\n'     ' -czf "../../dist/DeflateAndInflate-$(PROJECT_VERSION).tgz" *)'
     printf '%s\n' '	echo "" && echo "See '\''./dist/'\'' for result." && echo ""'
     printf '%s'   '	if test -n "$$(git status --porcelain 2>/dev/null)"; then'
     printf '%s'       ' echo "[WARN ] Worktree dirty!"; sleep 2;'
@@ -168,7 +168,7 @@ printMakefile () {
     printf '%s\n' '.PHONY: install'
     printf '%s\n' 'install:'
     printf '%s\n' '	$(MKDIRS) "$(BINDIR)"'
-    printf '%s\n' '	tar --strip-components=1 -C "$(BINDIR)" -xzf "$(shell ls dist/BulkLn-*.tgz)" -- bin'
+    printf '%s\n' '	tar --strip-components=1 -C "$(BINDIR)" -xzf "$(shell ls dist/DeflateAndInflate-*.tgz)" -- bin'
 }
 
 
