@@ -132,6 +132,7 @@ printMakefile () {
 
     printf '%s'   'build/bin/deflate$(BINEXT):'
     printf '%s'   ' build/obj/main/deflate.o'
+    printf '%s'   ' build/obj/main/zzKludge.o'
     printf '%s\n' ' build/link/deflate_main.o'
     printf '%s\n' '	@echo "  LN    $@"'
     printf '%s\n' '	$(MKDIRS) "$(shell T=$@; echo $${T%/*})"'
@@ -139,6 +140,7 @@ printMakefile () {
 
     printf '%s'   'build/bin/inflate$(BINEXT):'
     printf '%s'   ' build/obj/main/inflate.o'
+    printf '%s'   ' build/obj/main/zzKludge.o'
     printf '%s\n' ' build/link/inflate_main.o'
     printf '%s\n' '	echo "  LN    $@"'
     printf '%s\n' '	$(MKDIRS) "$(shell T=$@; echo $${T%/*})"'
