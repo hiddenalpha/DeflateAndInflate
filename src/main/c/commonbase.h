@@ -21,6 +21,7 @@
 
 
 #if WINDOOF
+#   include <windows.h>
 static inline void fixBrokenStdio( void ){
     _setmode(_fileno(stdin), O_BINARY);
     _setmode(_fileno(stdout), O_BINARY);
