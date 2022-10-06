@@ -30,6 +30,10 @@ dockerimage to our host using:
 sudo docker run --rm -i "${IMG:?}" sh -c 'true && cd dist && tar c *' | tar x
 ```
 
+WARN: Think for ABI compatibility! By default the dockerimage uses alpine linux
+      for compilation. Scroll down to "other targets" if you need to build
+      for other targets.
+
 
 ## Play around
 
