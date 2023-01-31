@@ -154,7 +154,7 @@ printMakefile () {
     printf '%s\n' '	$(MKDIRS) dist'
                   # Create Executable bundle.
     printf '%s\n' '	$(MKDIRS) build/dist-bin'
-    printf '%s\n' '	$(COPYTO) build/dist-bin  README* LICENCE*'
+    printf '%s\n' '	$(COPYTO) build/dist-bin  README* LICENSE*'
     printf '%s\n' '	$(MKDIRS) build/dist-bin/bin'
     printf '%s\n' '	$(COPYTO) build/dist-bin/bin  build/bin/*'
     printf '%s'   '	(cd build/dist-bin && find . -type f -not -name MD5SUM -exec md5sum -b {} +)'

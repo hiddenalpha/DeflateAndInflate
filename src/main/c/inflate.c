@@ -62,10 +62,10 @@ static int doInflate( MyInflate*myInflate ){
     #define MAX(a, b) ((a) > (b) ? (a) : (b))
     int err;
     z_stream strm;
-    uchar innBuf[65536];
+    uchar innBuf[65536]; /* TODO make at least 256k */
     const int innBuf_cap = sizeof innBuf;
     int innBuf_len = 0, innBuf_off = 0;
-    uchar outBuf[65536];
+    uchar outBuf[65536]; /* TODO make at least 256k */
     const int outBuf_cap = sizeof outBuf;
     int outBuf_len = 0;
     int inputIsEOF = 0;
@@ -88,7 +88,7 @@ static int doInflate( MyInflate*myInflate ){
         return -1;
     }
 
-    for(; !inputIsEOF || !outputIsEOF ;){
+    for(; !outputIsEOF ;){
 
         /* input */ {
             int space = innBuf_cap - innBuf_len;
@@ -113,7 +113,7 @@ static int doInflate( MyInflate*myInflate ){
                     if( feof(stdin) ){
                         inputIsEOF = !0;
                     }else{
-                        fprintf(stderr, "Error: fread(): %s\n", strerror(errno));
+                        fprintf(stderr, "inflate: fread(): %s\n", strerror(errno));
                         return -1;
                     }
                 }
@@ -156,36 +156,41 @@ static int doInflate( MyInflate*myInflate ){
                     outputIsEOF = !0;
                 }else if( err == Z_BUF_ERROR ){
                     /* Could not make any progress. Have to call again with updated buffers */
+#ifndef NDEBUG
+                    fprintf(stderr, "inflate() -> Z_BUF_ERROR\n");
+                    assert((strm.next_out - outBuf) > 0);
+#endif
                     noProgressSince += 1;
-                    if( noProgressSince > 42 ){
-                        fprintf(stderr, "Warn: inflate() -> Z_BUF_ERROR: %s (maybe EOF came too early?)\n",
-                                (strm.msg == NULL) ? "Could not make any progress" : strm.msg);
-                        return -1;
+                    if( noProgressSince % 42000000 == 0 ){
+                        fprintf(stderr, "inflate: Z_BUF_ERROR: %s",
+                            (strm.msg != NULL) ? strm.msg : "Input data looks invalid");
                     }
                 }else if( strm.msg != NULL || errno ){
-                    fprintf(stderr, "Error: inflate(): %s\n", (strm.msg != NULL) ? strm.msg :
-                            strerror(errno));
+                    fprintf(stderr, "inflate: Error: %s\n",
+                        (strm.msg != NULL) ? strm.msg : strerror(errno));
                     return -1;
                 }else{
-                    fprintf(stderr, "Error: inflate(): -> %d\n", err);
+                    fprintf(stderr, "inflate(): %d\n", err);
                     return -1;
                 }
-            }else{
-                noProgressSince = 0; /* reset as we just made progress */
             }
             innBuf_off += strm.next_in - innBuf;
             outBuf_len = strm.next_out - outBuf;
-            if( innBuf_off > innBuf_len ){ innBuf_off = innBuf_len; }
+            if( innBuf_off > innBuf_len ){
+                innBuf_off = innBuf_len; }
         }
 
         /* output */ {
             err = fwrite(outBuf, 1, outBuf_len, stdout);
             if(unlikely( err != outBuf_len )){
-                fprintf(stderr, "Errro: fwrite(): %s\n", strerror(errno));
+                fprintf(stderr, "inflate: fwrite(): %s\n", strerror(errno));
                 return -1;
             }
             outBuf_len = 0;
         }
+    }
+    if( !inputIsEOF ){
+        fprintf(stderr, "Warn: inflate complete, but input not EOF yet.\n");
     }
 
     err = inflateEnd(&strm);
