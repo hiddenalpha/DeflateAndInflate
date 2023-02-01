@@ -75,10 +75,10 @@ static int parseArgs( int argc, char**argv, Deflate*deflateCls ){
 static int doDeflate( Deflate*deflateCls ){
     int err;
     z_stream strm;
-    uchar innBuf[65536];
+    uchar innBuf[1<<18];
     const int innBuf_cap = sizeof innBuf;
     int innBuf_len = 0, innBuf_off = 0;
-    uchar outBuf[65536];
+    uchar outBuf[1<<18];
     const int outBuf_cap = sizeof outBuf;
     int outBuf_len = 0;
     int zlibHdrWritten = deflateCls->useZlibHdr ? 2 : 0;

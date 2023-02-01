@@ -62,15 +62,16 @@ static int doInflate( MyInflate*myInflate ){
     #define MAX(a, b) ((a) > (b) ? (a) : (b))
     int err;
     z_stream strm;
-    uchar innBuf[65536]; /* TODO make at least 256k */
+    uchar innBuf[1<<18];
     const int innBuf_cap = sizeof innBuf;
     int innBuf_len = 0, innBuf_off = 0;
-    uchar outBuf[65536]; /* TODO make at least 256k */
+    uchar outBuf[1<<18];
     const int outBuf_cap = sizeof outBuf;
     int outBuf_len = 0;
     int inputIsEOF = 0;
     int outputIsEOF = 0;
     int noProgressSince = 0;
+    int numBufError = 0;
     /* only counts while reading through possible file headers. Later, the
      * counter will not be updated anymore, to prevent overflows */
     int headerIsPassed = 0;
@@ -79,12 +80,12 @@ static int doInflate( MyInflate*myInflate ){
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
     strm.next_in = innBuf;
-    strm.avail_in = innBuf_len;
+    strm.avail_in = 0;
 
     // Pass special 2nd arg. See "https://codeandlife.com/2014/01/01/unzip-library-for-c/"
     err = inflateInit2(&strm, -MAX_WBITS);
     if( err != Z_OK ){
-        fprintf(stderr, "Error: inflateInit() ret=%d: %s\n", err, strerror(errno));
+        fprintf(stderr, "inflateInit(): r=%d: %s\n", err, strerror(errno));
         return -1;
     }
 
@@ -113,7 +114,7 @@ static int doInflate( MyInflate*myInflate ){
                     if( feof(stdin) ){
                         inputIsEOF = !0;
                     }else{
-                        fprintf(stderr, "inflate: fread(): %s\n", strerror(errno));
+                        fprintf(stderr, "inflate fread(): %s\n", strerror(errno));
                         return -1;
                     }
                 }
@@ -126,15 +127,15 @@ static int doInflate( MyInflate*myInflate ){
             #define avail (innBuf_len - innBuf_off)
             /* Ensure we have at least two bytes for zlib header detection */
             if( avail < 2 && !inputIsEOF ){
-                #ifndef NDEBUG
-                fprintf(stderr, "[DEBUG] Not enough data for header detection. have %d\n", avail);
-                #endif
+                //fprintf(stderr, "[DEBUG] Not enough data for header detection. have %d\n", avail);
                 continue;
             }
             headerIsPassed = !0;
             if( myInflate->tryParseHeaders ){
                 int b0 = innBuf[0], b1 = innBuf[1];
                 if( b0 == 0x78 && (b1 == 0x01 || b1 == 0x5E || b1 == 0x9C || b1 == 0xDA) ){
+                    /* Skip header. Because zlib would be confused as it
+                     * doesn't expect it */
                     innBuf_off += 2;
                 }
             }
@@ -154,26 +155,41 @@ static int doInflate( MyInflate*myInflate ){
             if(unlikely( err != Z_OK )){
                 if( err == Z_STREAM_END ){
                     outputIsEOF = !0;
-                }else if( err == Z_BUF_ERROR ){
-                    /* Could not make any progress. Have to call again with updated buffers */
-#ifndef NDEBUG
-                    fprintf(stderr, "inflate() -> Z_BUF_ERROR\n");
-                    assert((strm.next_out - outBuf) > 0);
-#endif
-                    noProgressSince += 1;
-                    if( noProgressSince % 42000000 == 0 ){
-                        fprintf(stderr, "inflate: Z_BUF_ERROR: %s",
-                            (strm.msg != NULL) ? strm.msg : "Input data looks invalid");
+                    goto errorsAreForSissies;
+                }
+                if( err == Z_DATA_ERROR ){
+                    if( ++numBufError & 0xFFFF ){
+                        /* TODO no idea why this occurs sometimes. Just
+                         * retry a few times before giving up for now */
+                        goto errorsAreForSissies;
+                    }else{
+                        /* No idea what to do now ... */
+                        fprintf(stderr, "inflate Z_DATA_ERROR: %s\n",
+                            (strm.msg != NULL) ? strm.msg : "(no detail)");
+                        return -1;
                     }
-                }else if( strm.msg != NULL || errno ){
+                }
+                numBufError = 0; /* reset just in case we'll get another case */
+                if( err == Z_BUF_ERROR ){
+                    /* Could not make any progress. Have to call again
+                     * with updated buffers */
+                    noProgressSince += 1;
+                    if( (noProgressSince & 0xFFFF) == 0){
+                        fprintf(stderr, "inflate: Z_BUF_ERROR: %s\n",
+                            (strm.msg != NULL) ? strm.msg : "(no detail)");
+                        return -1;
+                    }
+                }
+                noProgressSince = 0; /* reset just in case we'll get another case */
+                if( strm.msg != NULL || errno ){
                     fprintf(stderr, "inflate: Error: %s\n",
                         (strm.msg != NULL) ? strm.msg : strerror(errno));
                     return -1;
-                }else{
-                    fprintf(stderr, "inflate(): %d\n", err);
-                    return -1;
                 }
+                fprintf(stderr, "inflate(): %d\n", err);
+                return -1;
             }
+            errorsAreForSissies: /* eh.. only an error. Just keep going :) */
             innBuf_off += strm.next_in - innBuf;
             outBuf_len = strm.next_out - outBuf;
             if( innBuf_off > innBuf_len ){
@@ -188,9 +204,6 @@ static int doInflate( MyInflate*myInflate ){
             }
             outBuf_len = 0;
         }
-    }
-    if( !inputIsEOF ){
-        fprintf(stderr, "Warn: inflate complete, but input not EOF yet.\n");
     }
 
     err = inflateEnd(&strm);
