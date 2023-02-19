@@ -26,7 +26,7 @@ struct MyInflate {
 
 
 static void printHelp( void ){
-    printf("\n  %s%s", strrchr(__FILE__,'/')+1, " @ " STR_QUOT(PROJECT_VERSION) "\n"
+    printf("\n  %s%s", strrchr(__FILE__,'/')+1, "  " STR_QUOT(PROJECT_VERSION) "\n"
         "\n"
         "  inflates stdin to stdout\n"
         "\n"

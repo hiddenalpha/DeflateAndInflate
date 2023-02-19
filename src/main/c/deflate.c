@@ -30,11 +30,11 @@ struct Deflate {
 
 
 static void printHelp( void ){
-    printf("\n  %s%s", strrchr(__FILE__,'/')+1, " @ " STR_QUOT(PROJECT_VERSION) "\n"
+    printf("\n  %s%s", strrchr(__FILE__,'/')+1, "  " STR_QUOT(PROJECT_VERSION) "\n"
         "\n"
-        "deflates stdin to stdout\n"
+        "  deflates stdin to stdout\n"
         "\n"
-        "Options:\n"
+        "  Options:\n"
         "\n"
         "    --level\n"
         "        Compression level 0-9 (0 fastest, 9 smallest).\n"
