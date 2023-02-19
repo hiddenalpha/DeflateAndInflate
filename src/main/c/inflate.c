@@ -28,14 +28,14 @@ struct MyInflate {
 static void printHelp( void ){
     printf("\n  %s%s", strrchr(__FILE__,'/')+1, " @ " STR_QUOT(PROJECT_VERSION) "\n"
         "\n"
-        "inflates stdin to stdout\n"
+        "  inflates stdin to stdout\n"
         "\n"
-        "Options:\n"
+        "  Options:\n"
         "\n"
         "    --raw\n"
-        "        By default, we'll try to decode leading headers. Using this\n"
-        "        option, no header parsing is done and the input is expected to\n"
-        "        be a pure deflate stream.\n"
+        "      By default, we'll try to decode leading headers. Using this\n"
+        "      option, no header parsing is done and the input is expected to\n"
+        "      be a pure deflate stream.\n"
         "\n"
         "\n");
 }
@@ -110,6 +110,7 @@ static int doInflate( MyInflate*myInflate ){
             }
             if( space > 0 && !inputIsEOF ){
                 err = fread(innBuf + innBuf_len, 1, space, stdin);
+                //fprintf(stderr, "fread(buf+%d, 1, %d, stdin) -> %d\n", innBuf_len, space, err);
                 if(unlikely( err <= 0 )){
                     if( feof(stdin) ){
                         inputIsEOF = !0;
@@ -152,6 +153,8 @@ static int doInflate( MyInflate*myInflate ){
             int flush = inputIsEOF ? Z_FINISH : Z_NO_FLUSH;
             errno = 0;
             err = inflate(&strm, flush);
+            //fprintf(stderr, "inflate({.avI=%d, .avO=%d}, %d) -> %d\n", strm.avail_in, strm.avail_out,
+            //    flush, err);
             if(unlikely( err != Z_OK )){
                 if( err == Z_STREAM_END ){
                     outputIsEOF = !0;

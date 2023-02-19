@@ -59,9 +59,9 @@ printMakefile () {
     printf '%s'   'PROJECT_VERSION=$(shell'
     printf '%s'   ' ret=$$(git describe --tags 2>/dev/null |sed -E "s;^v;;");'
     printf '%s'   ' if test -n "$$ret" -a -n "$$(git status --porcelain 2>/dev/null)"; then'
-    printf '%s'       ' ret="$$ret+dirt";'
+    printf '%s'       ' ret="$$ret+dirt.$$($(CC) -dumpmachine)";'
     printf '%s'   ' fi;'
-    printf '%s'   ' if test -z "$$ret"; then ret=$$(date -u +0.0.0-%Y%m%d.%H%M%S); fi;'
+    printf '%s'   ' if test -z "$$ret"; then ret=$$(date -u +0.0.0-%Y%m%d.%H%M%S)"+$$($(CC) -dumpmachine)"; fi;'
     printf '%s\n' ' echo "$$ret")'
 
     if test "$verbose" = "0"; then printf '\n%s\n' '.SILENT:'; fi
