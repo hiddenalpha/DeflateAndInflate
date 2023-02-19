@@ -57,7 +57,7 @@ printMakefile () {
 
     printf '\n'
     printf '%s'   'PROJECT_VERSION=$(shell'
-    printf '%s'   ' ret=$$(git describe --tags 2>/dev/null |sed -E "s;^v;;");'
+    printf '%s'   ' ret=$$(git describe --tags 2>/dev/null |sed -E "s;^v;;")"+$$($(CC) -dumpmachine)";'
     printf '%s'   ' if test -n "$$ret" -a -n "$$(git status --porcelain 2>/dev/null)"; then'
     printf '%s'       ' ret="$$ret+dirt.$$($(CC) -dumpmachine)";'
     printf '%s'   ' fi;'
