@@ -58,10 +58,10 @@ computer.
 
 Setup environ vars according to your chosen build system. Here are few examlpes:
 
-### Debian config
+### Config for debian
 true \
   && PKGS_TO_ADD="ca-certificates curl gcc git make libc-dev tar" \
-  && PKGS_TO_DEL="curl gcc git make libc-dev" \
+  && PKGS_TO_DEL="gcc git make libc-dev" \
   && SUDO=sudo \
   && PKGINIT="$SUDO apt update" \
   && PKGADD="$SUDO apt install -y --no-install-recommends" \
@@ -70,13 +70,13 @@ true \
   && HOST= \
   && true
 
-### Alpine with w64 cross compiler setup
+### Config for alpine with w64 cross compiler
 true \
   && PKGS_TO_ADD="curl mingw-w64-gcc git make tar" \
-  && PKGS_TO_DEL="curl mingw-w64-gcc git make" \
-  && printf '#!/bin/sh\nsu - root -c "$(echo "$@")"\n' >/home/user/mysudo \
-  && chmod +x /home/user/mysudo \
-  && SUDO="/home/user/mysudo" \
+  && PKGS_TO_DEL="mingw-w64-gcc git make" \
+  && printf '#!/bin/sh\nsu root -c "$(echo "$@")"\n' >/home/${USER:?}/mysudo \
+  && chmod +x /home/${USER:?}/mysudo \
+  && SUDO="/home/${USER:?}/mysudo" \
   && PKGINIT=true \
   && PKGADD="$SUDO apk add" \
   && PKGDEL="$SUDO apk del" \
@@ -95,11 +95,7 @@ true \
   && WORKDIR="/home/${USER}/work" \
   && ZLIB_URL="https://downloads.sourceforge.net/project/libpng/zlib/${ZLIB_VERSION:?}/zlib-${ZLIB_VERSION:?}.tar.gz" \
   && ZLIB_LOCAL=zlib-${ZLIB_VERSION:?}.tgz \
-  && if test -n "$HOST"; then true \
-     && INSTALL_ROOT="/usr/${HOST:?}" \
-     ;else true \
-     && INSTALL_ROOT="/usr/local" \
-     ;fi \
+  && INSTALL_ROOT="/usr/${HOST:-local}" \
   && true \
   && mkdir -p "${WORKDIR:?}" && cd "${WORKDIR:?}" \
   && ${PKGINIT:?} && ${PKGADD:?} $PKGS_TO_ADD \
@@ -141,7 +137,8 @@ true \
   && git checkout "${GIT_TAG:?}" \
   && ./configure \
   && if test -n "$HOST"; then true \
-     && sed -Ei 's;^CC=gcc$;CC='"${HOST}"'-gcc;' Makefile \
+     && sed -Ei 's;^CC=gcc$;CC='"${HOST:?}"'-gcc;' Makefile \
+     && sed -Ei 's;^(PREFIX=/usr/)local$;\1'"${HOST:?}"';' Makefile \
      ;fi \
   && make clean && make -j$(nproc) \
   && if test -z "$HOST"; then $SUDO make install; fi \
