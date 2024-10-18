@@ -61,11 +61,9 @@ Setup environ vars according to your chosen build system. Here are few examlpes:
 ### Config for debian
 true \
   && PKGS_TO_ADD="ca-certificates curl gcc git make libc-dev tar" \
-  && PKGS_TO_DEL="gcc git make libc-dev" \
   && SUDO=sudo \
   && PKGINIT="$SUDO apt update" \
   && PKGADD="$SUDO apt install -y --no-install-recommends" \
-  && PKGDEL="$SUDO apt purge -y" \
   && PKGCLEAN="$SUDO apt clean" \
   && HOST= \
   && true
@@ -79,7 +77,6 @@ true \
   && SUDO="/home/${USER:?}/mysudo" \
   && PKGINIT=true \
   && PKGADD="$SUDO apk add" \
-  && PKGDEL="$SUDO apk del" \
   && PKGCLEAN=true \
   && HOST="x86_64-w64-mingw32" \
   && true
@@ -142,8 +139,6 @@ true \
      ;fi \
   && make clean && make -j$(nproc) \
   && if test -z "$HOST"; then $SUDO make install; fi \
-  && find . -not -wholename './dist*' -delete \
-  && ${PKGDEL:?} $PKGS_TO_DEL && ${PKGCLEAN:?} \
   && dirOfDistBundle="$(realpath dist)" \
   && printf '\n  SUCCESS  :)  Distribution bundle is ready in:\n\n  %s\n\n  Tip: Before pulling out your hair about how to get that archive out of\n       your qemu VM. STOP kluding around with silly tools and learn how\n       basic tools do the job perfectly fine:\n\n  ssh %s@localhost -p2222 -- sh -c '\''true && cd "%s" && tar c *'\'' | tar x\n\n  BTW: In addition 'deflate' and 'inflate' got installed and are ready-to-use.\n\n' "${dirOfDistBundle:?}" "$USER" "${dirOfDistBundle:?}" \
   && true
