@@ -71,7 +71,6 @@ true \
 ### Config for alpine with w64 cross compiler
 true \
   && PKGS_TO_ADD="curl mingw-w64-gcc git make tar" \
-  && PKGS_TO_DEL="mingw-w64-gcc git make" \
   && printf '#!/bin/sh\nsu root -c "$(echo "$@")"\n' >/home/${USER:?}/mysudo \
   && chmod +x /home/${USER:?}/mysudo \
   && SUDO="/home/${USER:?}/mysudo" \
