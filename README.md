@@ -16,7 +16,7 @@ isolated and easier to reproduce build environment via docker.
 ## Stats for Nerds
 
 ```txt
-github.com/AlDanial/cloc v 1.96  T=0.06 s (90.7 files/s, 9248.7 lines/s)
+github.com/AlDanial/cloc
 -------------------------------------------------
 Language        files    blank    comment    code
 -------------------------------------------------
